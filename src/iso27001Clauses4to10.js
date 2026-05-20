@@ -1,4 +1,9 @@
 // src/iso27001Clauses4to10.js
+/**
+ * ISO 27001 Clauses 4–10 tracker scaffold (placeholder content for demo).
+ * Includes editable test steps, evidence requests, and signoffs.
+ */
+
 const BASE = [
   { id: "4.1", area: "Context", title: "Understand internal/external context" },
   { id: "4.2", area: "Context", title: "Identify interested parties and requirements" },
@@ -38,7 +43,7 @@ export function buildISMSRequirements() {
     clause: r.id.split(".")[0],
     domain: `Clause ${r.id.split(".")[0]} — ${r.area}`,
     title: `Clause ${r.id}: ${r.title}`,
-    objective: "Document what ‘good’ looks like and evidence that it is operating.",
+    objective: "Describe what good looks like and evidence ongoing operation (demo placeholder).",
 
     testSteps: [
       "Identify required documented information / artifacts.",
@@ -46,6 +51,7 @@ export function buildISMSRequirements() {
       "Verify roles and responsibilities are defined.",
       "Confirm records demonstrate operating effectiveness.",
     ],
+
     evidenceRequests: [
       {
         id: `ER-C${r.id.replace(".", "")}-1`,
@@ -63,7 +69,7 @@ export function buildISMSRequirements() {
     priority: "High",
     notes: "",
 
-    // ✅ NEW
+    // ✅ Two-stage approvals stored here too
     signoffs: [],
   }));
 }
