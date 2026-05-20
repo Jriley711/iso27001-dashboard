@@ -1,9 +1,4 @@
 // src/iso27001Clauses4to10.js
-/**
- * ISO 27001:2022 Clauses 4–10 are mandatory ISMS requirements. [1](https://bastion.tech/learn/iso27001/iso-27001-requirements)[2](https://www.glocertinternational.com/resources/articles/iso-27001-requirements-overview/)
- * This is an ORIGINAL checklist scaffold with editable test steps & evidence.
- */
-
 const BASE = [
   { id: "4.1", area: "Context", title: "Understand internal/external context" },
   { id: "4.2", area: "Context", title: "Identify interested parties and requirements" },
@@ -40,24 +35,25 @@ export function buildISMSRequirements() {
   return BASE.map((r) => ({
     type: "requirement",
     id: r.id,
-    clause: r.id.split(".")[0], // 4,5,... (optional)
+    clause: r.id.split(".")[0],
     domain: `Clause ${r.id.split(".")[0]} — ${r.area}`,
     title: `Clause ${r.id}: ${r.title}`,
-    objective: "Document what ‘good’ looks like for your ISMS implementation and evidence it.",
+    objective: "Document what ‘good’ looks like and evidence that it is operating.",
 
     testSteps: [
       "Identify required documented information / artifacts.",
       "Validate the process exists and is implemented.",
       "Verify roles and responsibilities are defined.",
-      "Confirm records demonstrate ongoing operation.",
+      "Confirm records demonstrate operating effectiveness.",
     ],
     evidenceRequests: [
       {
         id: `ER-C${r.id.replace(".", "")}-1`,
-        description: "Primary documented information / record(s) supporting this requirement.",
+        description: "Primary documented info / record(s) supporting this requirement.",
         exampleFileName: "",
         format: "",
         collected: false,
+        internalNotes: "",
       },
     ],
 
@@ -66,5 +62,8 @@ export function buildISMSRequirements() {
     frequency: "Ongoing",
     priority: "High",
     notes: "",
+
+    // ✅ NEW
+    signoffs: [],
   }));
 }
