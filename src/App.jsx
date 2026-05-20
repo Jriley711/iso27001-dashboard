@@ -325,7 +325,13 @@ function ControlCard({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 14 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1.2fr 0.8fr",
+              gap: 14,
+            }}
+          >
             {/* Test Steps */}
             <div
               style={{
@@ -524,7 +530,12 @@ function ControlCard({
                           />
                         )}
                         {item.format && (
-                          <Chip label={item.format} color="#94a3b8" bg="#0f172a" border="#1e293b" />
+                          <Chip
+                            label={item.format}
+                            color="#94a3b8"
+                            bg="#0f172a"
+                            border="#1e293b"
+                          />
                         )}
                         <Chip label={item.id} color="#64748b" bg="#0b1220" border="#1e293b" />
                       </div>
@@ -699,16 +710,10 @@ export default function App() {
               </div>
             </div>
 
-            <button
-              onClick={() => setActiveView("controls")}
-              style={navBtn(activeView === "controls")}
-            >
+            <button onClick={() => setActiveView("controls")} style={navBtn(activeView === "controls")}>
               Controls
             </button>
-            <button
-              onClick={() => setActiveView("overview")}
-              style={navBtn(activeView === "overview")}
-            >
+            <button onClick={() => setActiveView("overview")} style={navBtn(activeView === "overview")}>
               Overview
             </button>
 
@@ -863,11 +868,9 @@ export default function App() {
                   key={c.id}
                   control={c}
                   evidenceChecked={evidenceChecked}
-                  onToggleEvidence={(eid) =>
-                    setEvidenceChecked((prev) => ({ ...prev, [eid]: !prev[eid] }))
-                  }
-                  onChangeStatus={(id, status) => changeStatus(id, status)}
-                  onChangeNotes={(id, notes) => changeNotes(id, notes)}
+                  onToggleEvidence={toggleEvidence}
+                  onChangeStatus={changeStatus}
+                  onChangeNotes={changeNotes}
                 />
               ))}
 
@@ -892,24 +895,12 @@ export default function App() {
             lineHeight: 1.6,
           }}
         >
-          <strong style={{ color: "#cbd5e1" }}>Disclaimer:</strong> This is a mock/illustrative dashboard for tracking controls and evidence.
-          It is not formal audit documentation or a certification deliverable.
+          <strong style={{ color: "#cbd5e1" }}>Disclaimer:</strong> This is a mock/illustrative dashboard for tracking controls and evidence. It is not
+          formal audit documentation or a certification deliverable.
         </div>
       </div>
     </div>
   );
-
-  // helpers
-  function changeStatus(controlId, newStatus) {
-    setControls((prev) =>
-      prev.map((c) => (c.id === controlId ? { ...c, status: newStatus } : c))
-    );
-  }
-  function changeNotes(controlId, notes) {
-    setControls((prev) =>
-      prev.map((c) => (c.id === controlId ? { ...c, notes } : c))
-    );
-  }
 }
 
 function SelectFilter({ label, value, setValue, options }) {
@@ -946,7 +937,9 @@ function StatCard({ label, value }) {
         padding: 14,
       }}
     >
-      <div style={{ fontFamily: "ui-monospace", fontWeight: 900, fontSize: 28 }}>{value}</div>
+      <div style={{ fontFamily: "ui-monospace", fontWeight: 900, fontSize: 28 }}>
+        {value}
+      </div>
       <div
         style={{
           color: "#94a3b8",
@@ -972,6 +965,7 @@ function navBtn(active) {
     fontWeight: 800,
   };
 }
+
 function solidBtn(isLabel = false) {
   return {
     padding: "8px 12px",
@@ -986,3 +980,4 @@ function solidBtn(isLabel = false) {
     gap: 8,
   };
 }
+``
