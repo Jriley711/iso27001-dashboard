@@ -1,9 +1,4 @@
 // src/iso27001AnnexA2022.js
-/**
- * ISO 27001:2022 Annex A scaffold (93 controls) across 4 themes: A.5/A.6/A.7/A.8. [3](https://bastion.tech/learn/iso27001/annex-a-controls)[4](https://seccomply.net/resources/blog/iso-27001-annex-a-controls)
- * Titles/objectives are ORIGINAL placeholders (not verbatim ISO text).
- */
-
 const DOMAIN_BY_CLAUSE = {
   "A.5": "Organisational Controls",
   "A.6": "People Controls",
@@ -38,7 +33,6 @@ function rangeIds(prefix, start, end) {
   return out;
 }
 
-// 93 total: A.5 (37), A.6 (8), A.7 (14), A.8 (34). [3](https://bastion.tech/learn/iso27001/annex-a-controls)[4](https://seccomply.net/resources/blog/iso-27001-annex-a-controls)
 const ANNEX_A_IDS = [
   ...rangeIds("A.5", 1, 37),
   ...rangeIds("A.6", 1, 8),
@@ -48,7 +42,7 @@ const ANNEX_A_IDS = [
 
 function clauseFromId(id) {
   const [a, clauseNum] = id.split(".");
-  return `${a}.${clauseNum}`; // A.5
+  return `${a}.${clauseNum}`;
 }
 
 function domainFromId(id) {
@@ -66,15 +60,12 @@ export function buildAnnexAControls() {
       id,
       clause,
       domain,
-
-      // placeholders you can enrich later (internal library / licensed content)
       title: `Annex A control ${id}`,
       objective: "Describe the control intent here (use internal templates / licensed wording).",
 
-      // editable arrays
       testSteps: [
         "Define what you will test and how you will sample.",
-        "Identify systems / sources of evidence for this control.",
+        "Identify systems/sources of evidence for this control.",
         "Evaluate design alignment to scope and risk.",
         "Validate operating effectiveness for the audit period.",
       ],
@@ -85,6 +76,7 @@ export function buildAnnexAControls() {
           exampleFileName: "",
           format: "",
           collected: false,
+          internalNotes: "",
         },
       ],
 
@@ -93,6 +85,9 @@ export function buildAnnexAControls() {
       frequency: DEFAULT_FREQUENCY_BY_DOMAIN[domain] || "TBD",
       priority: DEFAULT_PRIORITY_BY_DOMAIN[domain] || "Medium",
       notes: "",
+
+      // ✅ NEW
+      signoffs: [],
     };
   });
 }
