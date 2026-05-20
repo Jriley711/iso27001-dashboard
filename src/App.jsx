@@ -2,6 +2,16 @@ import React, { useEffect, useMemo, useState } from "react";
 import { buildAnnexAControls } from "./iso27001AnnexA2022";
 import { buildISMSRequirements } from "./iso27001Clauses4to10";
 
+/**
+ * External Demo — Full ISMS Tracker
+ * - Annex A Controls + Clauses 4–10
+ * - Editable test procedures + evidence requests
+ * - Editable priority/owner/frequency
+ * - Two-stage signoffs (Tester + Reviewer)
+ * - Rule: cannot set to Passed until BOTH Tester and Reviewer signoffs exist
+ * - Overview: status pie + evidence pie
+ */
+
 const DOMAIN_META = {
   "Organisational Controls": { color: "#6366f1" },
   "People Controls": { color: "#0891b2" },
@@ -23,11 +33,9 @@ const PRIORITY_META = {
   Medium: { color: "#22c55e", bg: "#052e1a", border: "#14532d" },
   Low: { color: "#94a3b8", bg: "#0b1220", border: "#1e293b" },
 };
-
 const PRIORITY_OPTIONS = ["High", "Medium", "Low"];
 
-const LS_KEY = "gt_iso27001_full_isms_tracker_v3";
-
+const LS_KEY = "iso27001_full_isms_demo_v1"; // ✅ no GT references
 const safeArray = (x) => (Array.isArray(x) ? x : []);
 
 function Chip({ label, color = "#e2e8f0", bg = "#0b1220", border = "#1e293b" }) {
@@ -155,7 +163,6 @@ function PieChart({ title, data, size = 180 }) {
   const r = size / 2;
   const cx = r;
   const cy = r;
-
   let startAngle = -Math.PI / 2;
 
   function arcPath(start, end) {
@@ -176,7 +183,6 @@ function PieChart({ title, data, size = 180 }) {
             const value = d.value || 0;
             const angle = (value / total) * Math.PI * 2;
             const endAngle = startAngle + angle;
-
             const path = arcPath(startAngle, endAngle);
             startAngle = endAngle;
 
@@ -217,17 +223,14 @@ function EditableTestSteps({ steps, onUpdate }) {
     next[idx] = text;
     onUpdate(next);
   }
-
   function addStep() {
     onUpdate([...list, ""]);
   }
-
   function removeStep(idx) {
     const next = list.slice();
     next.splice(idx, 1);
     onUpdate(next);
   }
-
   function move(idx, dir) {
     const next = list.slice();
     const j = idx + dir;
@@ -262,7 +265,6 @@ function EditableTestSteps({ steps, onUpdate }) {
           </div>
         </div>
       ))}
-
       <div>
         <IconButton title="Add test step" onClick={addStep}>+ Add Step</IconButton>
       </div>
@@ -278,12 +280,10 @@ function EditableEvidenceRequests({ evidence, onUpdate, idPrefix }) {
     next[idx] = { ...next[idx], ...patch };
     onUpdate(next);
   }
-
   function addEvidence() {
     const newId = `${idPrefix}-${Date.now().toString(36)}`;
     onUpdate([...list, { id: newId, description: "", exampleFileName: "", format: "", collected: false, internalNotes: "" }]);
   }
-
   function removeEvidence(idx) {
     const next = list.slice();
     next.splice(idx, 1);
@@ -324,15 +324,9 @@ function EditableEvidenceRequests({ evidence, onUpdate, idPrefix }) {
             </label>
           </div>
 
-          <TextArea
-            value={e.internalNotes || ""}
-            onChange={(v) => patchItem(idx, { internalNotes: v })}
-            placeholder="Internal notes for this evidence request (optional)…"
-            style={{ minHeight: 70 }}
-          />
+          <TextArea value={e.internalNotes || ""} onChange={(v) => patchItem(idx, { internalNotes: v })} placeholder="Internal notes (optional)…" style={{ minHeight: 70 }} />
         </div>
       ))}
-
       <div>
         <IconButton title="Add evidence request" onClick={addEvidence}>+ Add Evidence Request</IconButton>
       </div>
@@ -341,25 +335,38 @@ function EditableEvidenceRequests({ evidence, onUpdate, idPrefix }) {
 }
 
 /* ─────────────────────────────────────────────
-SIGNOFFS (NEW)
+TWO-STAGE SIGNOFFS (Tester -> Reviewer)
 ───────────────────────────────────────────── */
 function SignoffsEditor({ signoffs, onUpdate }) {
   const list = safeArray(signoffs);
   const [name, setName] = useState("");
-  const [role, setRole] = useState("Reviewer");
+  const [role, setRole] = useState("Tester");
+
+  const hasTester = list.some((s) => s.role === "Tester");
+  const hasReviewer = list.some((s) => s.role === "Reviewer");
 
   function addSignoff() {
     const n = name.trim();
-    if (!n) return alert("Enter reviewer name before signing off.");
+    if (!n) return alert("Enter a name before signing off.");
+
+    // Enforce two-stage order: Reviewer requires Tester first
+    if (role === "Reviewer" && !hasTester) {
+      return alert("Add a Tester sign-off before adding a Reviewer sign-off.");
+    }
+
+    // Prevent duplicate role signoffs by same name (optional sanity)
+    const dup = list.some((s) => s.name.toLowerCase() === n.toLowerCase() && s.role === role);
+    if (dup) return alert(`A ${role} sign-off by "${n}" already exists.`);
+
     const entry = {
       id: `SO-${Date.now().toString(36)}`,
       name: n,
-      role: role.trim() || "Reviewer",
+      role,
       at: new Date().toISOString(),
     };
     onUpdate([...list, entry]);
     setName("");
-    setRole("Reviewer");
+    setRole(role === "Tester" ? "Reviewer" : "Tester");
   }
 
   function removeSignoff(id) {
@@ -368,31 +375,68 @@ function SignoffsEditor({ signoffs, onUpdate }) {
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 200px auto", gap: 10, alignItems: "center" }}>
-        <TextInput value={name} onChange={setName} placeholder="Reviewer name (e.g., Kyle Harrison)" />
-        <TextInput value={role} onChange={setRole} placeholder="Role (Reviewer/Lead/Partner)" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 160px auto", gap: 10, alignItems: "center" }}>
+        <TextInput value={name} onChange={setName} placeholder="Name (e.g., Jane Doe)" />
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: "1px solid #1e293b",
+            background: "#0b1220",
+            color: "#e2e8f0",
+            fontWeight: 900,
+          }}
+        >
+          <option value="Tester">Tester</option>
+          <option value="Reviewer">Reviewer</option>
+        </select>
         <IconButton title="Add sign-off" onClick={addSignoff}>+ Sign Off</IconButton>
       </div>
 
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <Chip label={hasTester ? "Tester: ✓" : "Tester: required"} color={hasTester ? "#22c55e" : "#f59e0b"} bg="#0f172a" border="#1e293b" />
+        <Chip label={hasReviewer ? "Reviewer: ✓" : "Reviewer: required"} color={hasReviewer ? "#22c55e" : "#f59e0b"} bg="#0f172a" border="#1e293b" />
+      </div>
+
       <div style={{ border: "1px solid #1e293b", background: "#0b1220", borderRadius: 12, padding: 12 }}>
-        <div style={{ ...sectionLabel(), marginBottom: 10 }}>Sign-offs</div>
+        <div style={{ ...sectionLabel(), marginBottom: 10 }}>Recorded Sign-offs</div>
         {list.length === 0 ? (
           <div style={{ color: "#94a3b8" }}>
-            No sign-offs yet. At least one sign-off is required before setting status to <b>Passed</b>.
+            No sign-offs yet. You need <b>Tester</b> and <b>Reviewer</b> before marking <b>Passed</b>.
           </div>
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
-            {list.map((s) => (
-              <div key={s.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", border: "1px solid #1e293b", background: "#0f172a", padding: 10, borderRadius: 12 }}>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div style={{ fontWeight: 900, color: "#e2e8f0" }}>{s.name} <span style={{ color: "#94a3b8", fontWeight: 800 }}>— {s.role}</span></div>
-                  <div style={{ color: "#94a3b8", fontFamily: "ui-monospace", fontSize: 12 }}>
-                    {new Date(s.at).toLocaleString()}
+            {list
+              .slice()
+              .sort((a, b) => (a.at > b.at ? -1 : 1))
+              .map((s) => (
+                <div
+                  key={s.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    alignItems: "center",
+                    border: "1px solid #1e293b",
+                    background: "#0f172a",
+                    padding: 10,
+                    borderRadius: 12,
+                  }}
+                >
+                  <div style={{ display: "grid", gap: 4 }}>
+                    <div style={{ fontWeight: 900, color: "#e2e8f0" }}>
+                      {s.name} <span style={{ color: "#94a3b8", fontWeight: 800 }}>— {s.role}</span>
+                    </div>
+                    <div style={{ color: "#94a3b8", fontFamily: "ui-monospace", fontSize: 12 }}>
+                      {new Date(s.at).toLocaleString()}
+                    </div>
                   </div>
+                  <IconButton title="Remove sign-off" onClick={() => removeSignoff(s.id)}>✕</IconButton>
                 </div>
-                <IconButton title="Remove sign-off" onClick={() => removeSignoff(s.id)}>✕</IconButton>
-              </div>
-            ))}
+              ))}
           </div>
         )}
       </div>
@@ -401,14 +445,16 @@ function SignoffsEditor({ signoffs, onUpdate }) {
 }
 
 /* ─────────────────────────────────────────────
-CARD
+ITEM CARD
 ───────────────────────────────────────────── */
 function ItemCard({ item, onPatch }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("overview"); // overview | test | evidence | signoffs
 
   const signoffs = safeArray(item.signoffs);
-  const hasSignoff = signoffs.length > 0;
+  const hasTester = signoffs.some((s) => s.role === "Tester");
+  const hasReviewer = signoffs.some((s) => s.role === "Reviewer");
+  const canPass = hasTester && hasReviewer;
 
   const sm = STATUS_META[item.status] || STATUS_META["Not Started"];
   const pm = PRIORITY_META[item.priority] || PRIORITY_META.Medium;
@@ -418,8 +464,8 @@ function ItemCard({ item, onPatch }) {
   const doneEv = evidence.filter((x) => !!x.collected).length;
 
   function setStatusWithRule(nextStatus) {
-    if (nextStatus === "Passed" && !hasSignoff) {
-      alert("Cannot set to Passed until at least one reviewer sign-off is recorded.");
+    if (nextStatus === "Passed" && !canPass) {
+      alert("Cannot set to Passed until BOTH Tester and Reviewer sign-offs are recorded.");
       return;
     }
     onPatch({ status: nextStatus });
@@ -446,7 +492,7 @@ function ItemCard({ item, onPatch }) {
             <Chip label={`Freq: ${item.frequency || "—"}`} color="#94a3b8" bg="#0f172a" border="#1e293b" />
             <Chip label={`${doneEv}/${totalEv} evidence`} color={doneEv === totalEv && totalEv > 0 ? "#22c55e" : "#94a3b8"} bg="#0f172a" border="#1e293b" />
             <Chip label={`${item.priority || "Medium"} priority`} color={pm.color} bg={pm.bg} border={pm.border} />
-            <Chip label={hasSignoff ? "Sign-off: ✓" : "Sign-off required"} color={hasSignoff ? "#22c55e" : "#f59e0b"} bg="#0f172a" border="#1e293b" />
+            <Chip label={canPass ? "Signoffs: ✓✓" : "Signoffs: required"} color={canPass ? "#22c55e" : "#f59e0b"} bg="#0f172a" border="#1e293b" />
           </div>
         </div>
         <Chip label={`${sm.icon} ${item.status}`} color={sm.color} bg={sm.bg} border={sm.border} />
@@ -461,7 +507,7 @@ function ItemCard({ item, onPatch }) {
 
       {open && (
         <div style={{ borderTop: "1px solid #111827", padding: 14, display: "grid", gap: 14 }}>
-          {/* Tab bar */}
+          {/* Tabs */}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {[
               ["overview", "Overview"],
@@ -497,7 +543,7 @@ function ItemCard({ item, onPatch }) {
               <div style={{ border: "1px solid #1e293b", background: "#0f172a", borderRadius: 12, padding: 12 }}>
                 <div style={sectionLabel()}>Meta</div>
 
-                {/* ✅ Priority editable */}
+                {/* Priority */}
                 <div style={{ marginTop: 10 }}>
                   <div style={{ ...sectionLabel(), fontSize: 10, marginBottom: 6 }}>Priority</div>
                   <select
@@ -517,29 +563,33 @@ function ItemCard({ item, onPatch }) {
                   </select>
                 </div>
 
-                {/* ✅ Owner editable */}
+                {/* Owner */}
                 <div style={{ marginTop: 10 }}>
                   <div style={{ ...sectionLabel(), fontSize: 10, marginBottom: 6 }}>Owner</div>
                   <TextInput value={item.owner || ""} onChange={(v) => onPatch({ owner: v })} placeholder="Owner (e.g., CISO / HR / IT Security)" />
                 </div>
 
-                {/* ✅ Frequency editable */}
+                {/* Frequency */}
                 <div style={{ marginTop: 10 }}>
                   <div style={{ ...sectionLabel(), fontSize: 10, marginBottom: 6 }}>Frequency</div>
                   <TextInput value={item.frequency || ""} onChange={(v) => onPatch({ frequency: v })} placeholder="Frequency (e.g., Annual / Quarterly / Ongoing)" />
                 </div>
 
-                {/* ✅ Status with sign-off rule */}
+                {/* Status with signoff rule */}
                 <div style={{ marginTop: 14, ...sectionLabel() }}>Status</div>
                 <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {Object.keys(STATUS_META).map((s) => {
                     const meta = STATUS_META[s];
                     const active = item.status === s;
-                    const blocked = s === "Passed" && !hasSignoff;
+                    const blocked = s === "Passed" && !canPass;
                     return (
                       <button
                         key={s}
-                        onClick={(e) => { e.stopPropagation(); blocked ? alert("Add at least one sign-off to mark as Passed.") : setStatusWithRule(s); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (blocked) return alert("Add BOTH Tester and Reviewer sign-offs before marking Passed.");
+                          setStatusWithRule(s);
+                        }}
                         style={{
                           padding: "7px 10px",
                           borderRadius: 999,
@@ -550,12 +600,17 @@ function ItemCard({ item, onPatch }) {
                           fontSize: 12,
                           opacity: blocked ? 0.7 : 1,
                         }}
-                        title={blocked ? "Requires sign-off before passing" : ""}
+                        title={blocked ? "Requires Tester + Reviewer sign-off" : ""}
                       >
                         {meta.icon} {s}
                       </button>
                     );
                   })}
+                </div>
+
+                <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <Chip label={hasTester ? "Tester: ✓" : "Tester: required"} color={hasTester ? "#22c55e" : "#f59e0b"} bg="#0b1220" border="#1e293b" />
+                  <Chip label={hasReviewer ? "Reviewer: ✓" : "Reviewer: required"} color={hasReviewer ? "#22c55e" : "#f59e0b"} bg="#0b1220" border="#1e293b" />
                 </div>
 
                 <div style={{ marginTop: 14, ...sectionLabel() }}>Internal Notes</div>
@@ -564,7 +619,7 @@ function ItemCard({ item, onPatch }) {
             </div>
           )}
 
-          {/* Test Procedure tab */}
+          {/* Test tab */}
           {tab === "test" && (
             <div style={{ border: "1px solid #1e293b", background: "#0f172a", borderRadius: 12, padding: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 10 }}>
@@ -592,12 +647,12 @@ function ItemCard({ item, onPatch }) {
             </div>
           )}
 
-          {/* ✅ Sign-offs tab */}
+          {/* Signoffs tab */}
           {tab === "signoffs" && (
             <div style={{ border: "1px solid #1e293b", background: "#0f172a", borderRadius: 12, padding: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div style={sectionLabel()}>Reviewer Sign-offs</div>
-                <Chip label={hasSignoff ? `${signoffs.length} recorded` : "Required for Passed"} color={hasSignoff ? "#22c55e" : "#f59e0b"} bg="#0b1220" border="#1e293b" />
+                <div style={sectionLabel()}>Two-stage Sign-offs</div>
+                <Chip label={canPass ? "Complete" : "Tester + Reviewer required"} color={canPass ? "#22c55e" : "#f59e0b"} bg="#0b1220" border="#1e293b" />
               </div>
               <SignoffsEditor signoffs={item.signoffs} onUpdate={(next) => onPatch({ signoffs: next })} />
             </div>
@@ -647,7 +702,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "iso27001-full-isms-tracker-export.json";
+    a.download = "iso27001-full-isms-demo-export.json";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -681,9 +736,16 @@ export default function App() {
 
   const overviewStats = useMemo(() => {
     const all = [...annexA, ...ismsReqs];
-    const statusCounts = Object.keys(STATUS_META).reduce((acc, k) => ({ ...acc, [k]: 0 }), {});
-    all.forEach((x) => { statusCounts[x.status] = (statusCounts[x.status] || 0) + 1; });
 
+    // status counts
+    const statusCounts = {};
+    Object.keys(STATUS_META).forEach((k) => (statusCounts[k] = 0));
+    all.forEach((x) => {
+      const k = x.status || "Not Started";
+      statusCounts[k] = (statusCounts[k] || 0) + 1;
+    });
+
+    // evidence totals
     const totalEvidence = all.reduce((s, x) => s + safeArray(x.evidenceRequests).length, 0);
     const collectedEvidence = all.reduce((s, x) => s + safeArray(x.evidenceRequests).filter((e) => !!e.collected).length, 0);
     const remainingEvidence = Math.max(0, totalEvidence - collectedEvidence);
@@ -699,27 +761,26 @@ export default function App() {
   const statusOptions = ["ALL", ...Object.keys(STATUS_META)];
   const priorityOptions = ["ALL", ...PRIORITY_OPTIONS];
 
-  // Pie data (status)
   const statusPie = useMemo(() => {
     const colors = {
-      "Passed": "#22c55e",
+      Passed: "#22c55e",
       "In Progress": "#f59e0b",
       "Not Started": "#94a3b8",
       "Ready for Review": "#38bdf8",
-      "Failed": "#ef4444",
+      Failed: "#ef4444",
     };
-    return Object.keys(STATUS_META).map((k) => ({
-      label: k,
-      value: overviewStats.statusCounts[k] || 0,
-      color: colors[k] || "#64748b",
-    })).filter(d => d.value > 0);
+    return Object.keys(STATUS_META)
+      .map((k) => ({ label: k, value: overviewStats.statusCounts[k] || 0, color: colors[k] || "#64748b" }))
+      .filter((d) => d.value > 0);
   }, [overviewStats]);
 
-  // Pie data (evidence collected vs remaining)
-  const evidencePie = useMemo(() => ([
-    { label: "Collected", value: overviewStats.collectedEvidence, color: "#22c55e" },
-    { label: "Remaining", value: overviewStats.remainingEvidence, color: "#94a3b8" },
-  ]), [overviewStats]);
+  const evidencePie = useMemo(
+    () => [
+      { label: "Collected", value: overviewStats.collectedEvidence, color: "#22c55e" },
+      { label: "Remaining", value: overviewStats.remainingEvidence, color: "#94a3b8" },
+    ],
+    [overviewStats]
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: "#0c111d", color: "#e2e8f0" }}>
@@ -736,10 +797,9 @@ export default function App() {
             <div style={{ width: 36, height: 36, borderRadius: 12, background: "linear-gradient(135deg, #6366f1 0%, #0891b2 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 950 }}>
               ISO
             </div>
-
             <div style={{ flex: 1, minWidth: 260 }}>
-              <div style={{ fontWeight: 950, fontSize: 16 }}>ISO 27001 — Full ISMS Tracker</div>
-              <div style={{ color: "#94a3b8", fontSize: 12 }}>Clauses 4–10 + Annex A; editable procedures, evidence, and sign-offs.</div>
+              <div style={{ fontWeight: 950, fontSize: 16 }}>ISO 27001 — Full ISMS Tracker (External Demo)</div>
+              <div style={{ color: "#94a3b8", fontSize: 12 }}>Two-stage approvals: Tester + Reviewer required before Passed.</div>
             </div>
 
             <button onClick={() => setActiveView("annexA")} style={navBtn(activeView === "annexA")}>Annex A Controls</button>
@@ -748,7 +808,7 @@ export default function App() {
 
             <button onClick={exportJSON} style={solidBtn()}>Export JSON</button>
 
-            <label style={solidBtn(true)}>
+            <label style={solidBtn()}>
               Import JSON
               <input
                 type="file"
@@ -779,7 +839,7 @@ export default function App() {
           )}
         </div>
 
-        {/* OVERVIEW */}
+        {/* Overview */}
         {activeView === "overview" && (
           <div style={{ paddingTop: 18, display: "grid", gap: 14 }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
@@ -787,22 +847,21 @@ export default function App() {
               <StatCard label="Evidence Collected" value={`${overviewStats.collectedEvidence}/${overviewStats.totalEvidence}`} />
             </div>
 
-            {/* ✅ Two pie charts */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <PieChart title="Status Distribution" data={statusPie.length ? statusPie : [{ label: "No data", value: 1, color: "#334155" }]} />
               <PieChart title="Evidence Collection" data={evidencePie} />
             </div>
 
             <div style={{ border: "1px solid #1e293b", background: "#0b1220", borderRadius: 16, padding: 14 }}>
-              <div style={{ fontWeight: 950, marginBottom: 10 }}>Rule: Sign-off required for Passed</div>
+              <div style={{ fontWeight: 950, marginBottom: 10 }}>Approval Rule</div>
               <div style={{ color: "#94a3b8", lineHeight: 1.6 }}>
-                Controls/requirements cannot be marked <b>Passed</b> until at least one reviewer sign-off is recorded in the Sign-offs tab.
+                Items cannot be marked <b>Passed</b> until both <b>Tester</b> and <b>Reviewer</b> sign-offs are recorded.
               </div>
             </div>
           </div>
         )}
 
-        {/* LIST VIEW */}
+        {/* Lists */}
         {activeView !== "overview" && (
           <div style={{ paddingTop: 18 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
@@ -810,7 +869,7 @@ export default function App() {
                 Showing {filteredItems.length} of {activeItems.length}
               </div>
               <div style={{ color: "#94a3b8", fontFamily: "ui-monospace" }}>
-                Edit Priority/Owner/Frequency in the Overview tab inside each card.
+                Tip: Edit priority/owner/frequency under each card → Overview tab.
               </div>
             </div>
 
@@ -819,10 +878,7 @@ export default function App() {
                 <ItemCard
                   key={`${item.type}-${item.id}`}
                   item={item}
-                  onPatch={(patch) => {
-                    if (activeView === "isms") patchISMS(item.id, patch);
-                    else patchAnnexA(item.id, patch);
-                  }}
+                  onPatch={(patch) => (activeView === "isms" ? patchISMS(item.id, patch) : patchAnnexA(item.id, patch))}
                 />
               ))}
 
@@ -836,14 +892,11 @@ export default function App() {
         )}
 
         <div style={{ marginTop: 28, padding: 14, borderRadius: 14, border: "1px solid #1e293b", background: "#0b1220", color: "#94a3b8", lineHeight: 1.6 }}>
-          <strong style={{ color: "#cbd5e1" }}>Disclaimer:</strong> Mock/illustrative tracker. Keep data internal and avoid client confidential info in public deployments.
+          <strong style={{ color: "#cbd5e1" }}>Disclaimer:</strong> External demo. Use mock data only.
         </div>
       </div>
     </div>
   );
-
-  function patchAnnexA(id, patch) { setAnnexA((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch } : x))); }
-  function patchISMS(id, patch) { setIsmsReqs((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch } : x))); }
 }
 
 function SelectFilter({ label, value, setValue, options }) {
