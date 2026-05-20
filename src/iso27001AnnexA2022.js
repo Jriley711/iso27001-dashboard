@@ -1,4 +1,9 @@
 // src/iso27001AnnexA2022.js
+/**
+ * ISO 27001:2022 Annex A scaffold (IDs only; placeholder content).
+ * Priorities constrained to High / Medium / Low.
+ */
+
 const DOMAIN_BY_CLAUSE = {
   "A.5": "Organisational Controls",
   "A.6": "People Controls",
@@ -60,15 +65,18 @@ export function buildAnnexAControls() {
       id,
       clause,
       domain,
+
+      // Placeholder fields (safe for external demo)
       title: `Annex A control ${id}`,
-      objective: "Describe the control intent here (use internal templates / licensed wording).",
+      objective: "Describe the control intent here (placeholder for demo).",
 
       testSteps: [
-        "Define what you will test and how you will sample.",
-        "Identify systems/sources of evidence for this control.",
+        "Define what to test and sampling approach.",
+        "Identify evidence sources and responsible owners.",
         "Evaluate design alignment to scope and risk.",
         "Validate operating effectiveness for the audit period.",
       ],
+
       evidenceRequests: [
         {
           id: `ER-${id.replaceAll(".", "")}-1`,
@@ -86,7 +94,7 @@ export function buildAnnexAControls() {
       priority: DEFAULT_PRIORITY_BY_DOMAIN[domain] || "Medium",
       notes: "",
 
-      // ✅ NEW
+      // ✅ Two-stage approvals stored here
       signoffs: [],
     };
   });
